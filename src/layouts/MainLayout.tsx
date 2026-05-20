@@ -1,18 +1,16 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 
 export default function MainLayout() {
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 ml-64 flex flex-col">
-        <Navbar />
-        <main className="flex-1 p-8 overflow-auto">
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="pt-[68px] min-h-screen">
+        <div className="max-w-[1600px] mx-auto px-6 py-8">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

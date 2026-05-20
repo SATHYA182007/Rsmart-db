@@ -1,222 +1,213 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid,
-  PolarAngleAxis, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area, PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
-import { RefreshCw } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Printer, Download, Sparkles, RefreshCw, Star, ShieldAlert } from 'lucide-react';
 import { useAppData } from '@/hooks/useAppData';
 import { formatCourse } from '@/types';
 
-const COLORS = ['#3B82F6', '#7AB8FF', '#4F8CFF', '#93C5FD', '#BFDBFE'];
+const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE'];
 
-const StatCard = ({ label, value, sub }: { label: string; value: string; sub: string }) => (
-  <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
-    <p className="text-sm font-medium text-text-secondary mb-1">{label}</p>
-    <p className="text-3xl font-bold text-text-primary">{value}</p>
-    <p className="text-xs text-text-secondary mt-1">{sub}</p>
-  </div>
-);
+// Static stats for reviewer productivity simulation
+const reviewerStats = [
+  { name: 'Admin Sarah', reviews: 24, avgTime: '12m', pending: 3, approvalRate: '75%' },
+  { name: 'Reviewer Dave', reviews: 18, avgTime: '15m', pending: 5, approvalRate: '68%' },
+  { name: 'Staff Jenkins', reviews: 31, avgTime: '9m', pending: 1, approvalRate: '82%' },
+];
 
 export default function Analytics() {
-  const { students, examResults, loading } = useAppData();
+  const { students, examResults, scholarships, loading, reload } = useAppData();
 
+  const total = students.length;
   const evaluated = examResults.filter(r => r.status === 'Evaluated');
-  const malpractice = examResults.filter(r => r.status === 'Malpractice');
+  const passed = evaluated.filter(r => r.percentage >= 50).length;
+  const passPercent = evaluated.length ? Math.round((passed / evaluated.length) * 100) : 0;
 
-  const avgScore = evaluated.length
-    ? (evaluated.reduce((a, b) => a + b.percentage, 0) / evaluated.length).toFixed(1)
-    : '0';
-
-  const avg12th = students.length
-    ? (students.reduce((a, b) => a + b.percentage_12th, 0) / students.length).toFixed(1)
-    : '0';
-
-  const malpracticeRate = examResults.length
-    ? ((malpractice.length / examResults.length) * 100).toFixed(1)
-    : '0';
-
-  const evalRate = examResults.length
-    ? ((evaluated.length / examResults.length) * 100).toFixed(0)
-    : '0';
-
-  // Section averages
-  const mkAvg = (key: keyof typeof examResults[0]) =>
-    examResults.length
-      ? (examResults.reduce((a, b) => a + (b[key] as number), 0) / examResults.length).toFixed(1)
-      : '0';
-
-  const examRadarData = [
-    { section: 'Section A', score: Number(mkAvg('section_a_score')) },
-    { section: 'Section B', score: Number(mkAvg('section_b_score')) },
-    { section: 'Section C', score: Number(mkAvg('section_c_score')) },
-    { section: 'Section D', score: Number(mkAvg('section_d_score')) },
-  ];
-
-  // Course distribution
-  const courseCounts: Record<string, number> = {};
+  // ─── Department-wise Applications ─────────────────────────────────────────
+  const deptCounts: Record<string, number> = {};
   students.forEach(s => {
     const label = formatCourse(s.course);
-    courseCounts[label] = (courseCounts[label] ?? 0) + 1;
+    deptCounts[label] = (deptCounts[label] ?? 0) + 1;
   });
-  const courseData = Object.entries(courseCounts).map(([name, value], i) => ({
-    name, value, color: COLORS[i % COLORS.length],
-  }));
+  const deptData = Object.entries(deptCounts).map(([name, count]) => ({ name, count }));
 
-  // State distribution
+  // ─── State-wise Applications ───────────────────────────────────────────────
   const stateCounts: Record<string, number> = {};
   students.forEach(s => {
     stateCounts[s.state] = (stateCounts[s.state] ?? 0) + 1;
   });
   const stateData = Object.entries(stateCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([name, students]) => ({ name, students }));
+    .map(([state, count]) => ({ state, count }))
+    .sort((a, b) => b.count - a.count);
 
-  // Monthly trend
-  const monthlyData = [
-    { name: 'Jan', apps: 2, evaluated: 1, malpractice: 0 },
-    { name: 'Feb', apps: 4, evaluated: 2, malpractice: 1 },
-    { name: 'Mar', apps: 6, evaluated: 4, malpractice: 1 },
-    { name: 'Apr', apps: 8, evaluated: 5, malpractice: 2 },
-    { name: 'May', apps: students.length, evaluated: evaluated.length, malpractice: malpractice.length },
+  // ─── Scholarship status ────────────────────────────────────────────────────
+  const meritCount = students.filter(s => s.scholarship_eligible).length;
+  const schData = [
+    { name: 'Scholarship Qualified', count: meritCount },
+    { name: 'General Applicants', count: total - meritCount },
   ];
+
+  // ─── Export simulation functions ───────────────────────────────────────────
+  const handleExport = (type: 'pdf' | 'excel' | 'print') => {
+    alert(`Exporting RSmart admission reports as ${type.toUpperCase()}... File download started.`);
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 gap-3 text-text-secondary">
         <RefreshCw size={22} className="animate-spin" />
-        <span>Loading analytics from Supabase...</span>
+        <span>Syncing database analytics...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Analytics</h1>
-        <p className="text-text-secondary mt-1">Deep dive into admission trends and exam performance.</p>
-      </div>
-
-      {/* KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <StatCard label="Avg Exam Score" value={`${avgScore}%`} sub={`${evaluated.length} evaluated results`} />
-        <StatCard label="Evaluation Rate" value={`${evalRate}%`} sub={`${evaluated.length} of ${examResults.length} results`} />
-        <StatCard label="Avg 12th %" value={`${avg12th}%`} sub="Across all applicants" />
-        <StatCard label="Malpractice Rate" value={`${malpracticeRate}%`} sub={`${malpractice.length} flagged cases`} />
-      </div>
-
-      {/* Growth + Pie */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl border border-border p-6 shadow-sm lg:col-span-2"
-        >
-          <h3 className="text-lg font-bold text-text-primary mb-6">Applications vs Exam Outcomes</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyData}>
-                <defs>
-                  <linearGradient id="gApps" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gEvaluated" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22C55E" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} dx={-8} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }} />
-                <Legend />
-                <Area type="monotone" dataKey="apps" name="Applications" stroke="#3B82F6" strokeWidth={2.5} fillOpacity={1} fill="url(#gApps)" />
-                <Area type="monotone" dataKey="evaluated" name="Evaluated" stroke="#22C55E" strokeWidth={2.5} fillOpacity={1} fill="url(#gEvaluated)" />
-              </AreaChart>
-            </ResponsiveContainer>
+    <div className="space-y-6">
+      {/* Header with actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-border rounded-xl p-6 shadow-soft">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-primary" />
+            <h1 className="text-xl font-bold text-text-primary">Executive Analytics Dashboard</h1>
           </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl border border-border p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-bold text-text-primary mb-6">Course Distribution</h3>
-          {courseData.length === 0 ? (
-            <p className="text-text-secondary text-sm text-center mt-16">No data</p>
-          ) : (
-            <>
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={courseData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} dataKey="value" paddingAngle={3}>
-                      {courseData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-2 mt-2">
-                {courseData.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                      <span className="text-text-secondary">{c.name}</span>
-                    </div>
-                    <span className="font-medium text-text-primary">{c.value}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </motion.div>
+          <p className="text-xs text-text-secondary mt-1">Deep analytics on conversion rates, reviewer productivity, and student cohorts.</p>
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <button onClick={() => handleExport('pdf')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
+            <FileDown size={14} className="text-red-500" /> Export PDF
+          </button>
+          <button onClick={() => handleExport('excel')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
+            <FileSpreadsheet size={14} className="text-green-600" /> Export Excel
+          </button>
+          <button onClick={() => handleExport('print')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
+            <Printer size={14} className="text-blue-600" /> Print Report
+          </button>
+        </div>
       </div>
 
-      {/* State + Radar */}
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Overall Pass Percentage', value: `${passPercent}%`, desc: `${passed} qualified applicants` },
+          { label: 'Total Cohort Intake', value: total, desc: 'Students registered in DB' },
+          { label: 'Evaluation Queue Finish', value: `${evaluated.length}/${total}`, desc: 'Total tests processed' },
+          { label: 'Scholarships Awarded', value: meritCount, desc: 'Meritorious scholarship qualifiers' },
+        ].map((card, i) => (
+          <div key={i} className="bg-white border border-border rounded-xl p-5 shadow-soft">
+            <p className="text-xs font-semibold text-text-secondary">{card.label}</p>
+            <p className="text-2xl font-bold text-text-primary mt-2">{card.value}</p>
+            <p className="text-[10px] text-text-secondary mt-0.5">{card.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl border border-border p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-bold text-text-primary mb-6">State-wise Distribution</h3>
+        {/* Department-wise Applications */}
+        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Department-wise Applications</h3>
+            <p className="text-[10px] text-text-secondary mt-0.5">Application metrics organized by department streams</p>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stateData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+              <BarChart data={deptData} margin={{ left: -15, right: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11 }} dx={-4} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                <Bar dataKey="students" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={32} name="Students" />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dx={-4} />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Applicants" barSize={35} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-          className="bg-white rounded-xl border border-border p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-bold text-text-primary mb-6">Avg Exam Section Performance</h3>
+        {/* State-wise applications */}
+        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Geographic Reach</h3>
+            <p className="text-[10px] text-text-secondary mt-0.5">Top performing states based on intake numbers</p>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={examRadarData}>
-                <PolarGrid stroke="#E5EEF9" />
-                <PolarAngleAxis dataKey="section" tick={{ fill: '#64748B', fontSize: 12 }} />
-                <Radar name="Avg Score" dataKey="score" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} strokeWidth={2} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-              </RadarChart>
+              <BarChart data={stateData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5EEF9" />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                <YAxis type="category" dataKey="state" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                <Bar dataKey="count" fill="#60A5FA" radius={[0, 4, 4, 0]} name="Applicants" barSize={16} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {examRadarData.map((d, i) => (
-              <div key={i} className="text-center bg-background rounded-lg p-2">
-                <p className="text-sm font-bold text-text-primary">{d.score}</p>
-                <p className="text-xs text-text-secondary">{d.section.replace('Section ', 'Sec ')}</p>
-              </div>
-            ))}
+        </div>
+      </div>
+
+      {/* Scholarship and Reviewer productivity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Scholarship breakdown */}
+        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Scholarship Allocation</h3>
+            <p className="text-[10px] text-text-secondary mt-0.5">Applicants matching the merit criteria</p>
           </div>
-        </motion.div>
+          <div className="h-56 flex flex-col justify-between">
+            <ResponsiveContainer width="100%" height={140}>
+              <PieChart>
+                <Pie data={schData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="count" paddingAngle={2}>
+                  {schData.map((e, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-1.5 text-[11px] font-semibold text-text-secondary">
+              {schData.map((s, idx) => (
+                <div key={s.name} className="flex justify-between items-center">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <span>{s.name}</span>
+                  </div>
+                  <span className="text-text-primary font-bold">{s.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Reviewer Productivity */}
+        <div className="bg-white border border-border rounded-xl p-6 shadow-soft lg:col-span-2 space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Reviewer Productivity Metrics</h3>
+            <p className="text-[10px] text-text-secondary mt-0.5">Active workload tracking for verification admins</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-background text-text-secondary font-bold uppercase border-b border-border">
+                  <th className="px-4 py-3">Reviewer Name</th>
+                  <th className="px-4 py-3 text-center">Reviews Completed</th>
+                  <th className="px-4 py-3 text-center">Avg Time</th>
+                  <th className="px-4 py-3 text-center">Pending Cases</th>
+                  <th className="px-4 py-3 text-right">Approval Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {reviewerStats.map(r => (
+                  <tr key={r.name} className="hover:bg-blue-50/10">
+                    <td className="px-4 py-3 font-semibold text-text-primary">{r.name}</td>
+                    <td className="px-4 py-3 text-center font-bold text-text-primary">{r.reviews}</td>
+                    <td className="px-4 py-3 text-center text-text-secondary">{r.avgTime}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.pending}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-green-600">{r.approvalRate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

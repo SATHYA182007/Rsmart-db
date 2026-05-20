@@ -18,7 +18,7 @@ const ALL_STATUSES: FilterStatus[] = ['All', 'Evaluated', 'Malpractice', 'No Res
 const PAGE_SIZE = 10;
 
 export default function Students() {
-  const { students, examResults, loading, error, getLatestExamResult, reload } = useAppData();
+  const { students, examResults, loading, error, getLatestExamResult, reload, updateStudent } = useAppData();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('All');
@@ -29,10 +29,10 @@ export default function Students() {
   const filtered = useMemo(() => {
     return students.filter(s => {
       const matchSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        String(s.application_no).includes(search) ||
-        s.email.toLowerCase().includes(search.toLowerCase()) ||
-        s.exam_set.toLowerCase().includes(search.toLowerCase());
+        (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(s.application_no || '').includes(search) ||
+        (s.email || '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.exam_set || '').toLowerCase().includes(search.toLowerCase());
 
       const result = getLatestExamResult(s.id);
       const matchStatus =
@@ -162,7 +162,7 @@ export default function Students() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                          {student.name.charAt(0).toUpperCase()}
+                          {(student.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-semibold text-text-primary group-hover:text-primary transition-colors">{student.name}</p>
@@ -193,7 +193,7 @@ export default function Students() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-text-primary">
-                      {result ? `${result.total_score} (${result.percentage.toFixed(0)}%)` : '—'}
+                      {result ? `${result.total_score || 0} (${(result.percentage || 0).toFixed(0)}%)` : '—'}
                     </td>
                     <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                       <button className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-background transition-colors">
@@ -233,7 +233,7 @@ export default function Students() {
         </div>
       </motion.div>
 
-      <StudentDrawer student={selectedStudent} examResult={selectedExamResult} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <StudentDrawer student={selectedStudent} examResult={selectedExamResult} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} onUpdateStudent={updateStudent} />
     </div>
   );
 }
