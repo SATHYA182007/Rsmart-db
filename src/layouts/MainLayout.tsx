@@ -1,16 +1,24 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import AppSidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="pt-[68px] min-h-screen">
-        <div className="max-w-[1600px] mx-auto px-6 py-8">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+    <TooltipProvider>
+      <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Topbar />
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+            <Outlet />
+          </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+    </TooltipProvider>
   );
 }

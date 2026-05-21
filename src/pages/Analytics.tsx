@@ -1,214 +1,326 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, PieChart, Pie, Cell, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis
 } from 'recharts';
-import { FileDown, FileSpreadsheet, Printer, Download, Sparkles, RefreshCw, Star, ShieldAlert } from 'lucide-react';
+import { FileDown, FileSpreadsheet, Printer, Sparkles, RefreshCw } from 'lucide-react';
 import { useAppData } from '@/hooks/useAppData';
-import { formatCourse } from '@/types';
+import { useCourse } from '@/context/CourseContext';
+import { formatCourse, getRankingBand, RANKING_BAND_STYLES, BAND_DISPLAY, RankingBand, ExamResult } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE'];
-
-// Static stats for reviewer productivity simulation
-const reviewerStats = [
-  { name: 'Admin Sarah', reviews: 24, avgTime: '12m', pending: 3, approvalRate: '75%' },
-  { name: 'Reviewer Dave', reviews: 18, avgTime: '15m', pending: 5, approvalRate: '68%' },
-  { name: 'Staff Jenkins', reviews: 31, avgTime: '9m', pending: 1, approvalRate: '82%' },
-];
+const COLORS = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+const BAND_COLORS: Record<RankingBand, string> = {
+  DISTINGUISHED: '#7C3AED',
+  PROFICIENT: '#3B82F6',
+  ADVANCED: '#10B981',
+  EMERGING: '#F59E0B',
+};
 
 export default function Analytics() {
-  const { students, examResults, scholarships, loading, reload } = useAppData();
+  const { config } = useCourse();
+  const { students, examResults, loading, reload } = useAppData();
 
   const total = students.length;
   const evaluated = examResults.filter(r => r.status === 'Evaluated');
+  const malpractice = examResults.filter(r => r.status === 'Malpractice').length;
   const passed = evaluated.filter(r => r.percentage >= 50).length;
   const passPercent = evaluated.length ? Math.round((passed / evaluated.length) * 100) : 0;
 
-  // ─── Department-wise Applications ─────────────────────────────────────────
-  const deptCounts: Record<string, number> = {};
+  const courseCounts: Record<string, number> = {};
   students.forEach(s => {
     const label = formatCourse(s.course);
-    deptCounts[label] = (deptCounts[label] ?? 0) + 1;
+    courseCounts[label] = (courseCounts[label] ?? 0) + 1;
   });
-  const deptData = Object.entries(deptCounts).map(([name, count]) => ({ name, count }));
+  const deptData = Object.entries(courseCounts).map(([name, count]) => ({ name, count }));
 
-  // ─── State-wise Applications ───────────────────────────────────────────────
   const stateCounts: Record<string, number> = {};
-  students.forEach(s => {
-    stateCounts[s.state] = (stateCounts[s.state] ?? 0) + 1;
-  });
+  students.forEach(s => { stateCounts[s.state] = (stateCounts[s.state] ?? 0) + 1; });
   const stateData = Object.entries(stateCounts)
     .map(([state, count]) => ({ state, count }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
 
-  // ─── Scholarship status ────────────────────────────────────────────────────
-  const meritCount = students.filter(s => s.scholarship_eligible).length;
-  const schData = [
-    { name: 'Scholarship Qualified', count: meritCount },
-    { name: 'General Applicants', count: total - meritCount },
+  const genderCounts: Record<string, number> = {};
+  students.forEach(s => { genderCounts[s.gender] = (genderCounts[s.gender] ?? 0) + 1; });
+  const genderData = Object.entries(genderCounts).map(([name, value]) => ({ name, value }));
+
+  const bandCounts: Record<RankingBand, number> = { DISTINGUISHED: 0, PROFICIENT: 0, ADVANCED: 0, EMERGING: 0 };
+  examResults.forEach(r => {
+    const b = r.band ?? getRankingBand(r.percentage);
+    bandCounts[b] = (bandCounts[b] ?? 0) + 1;
+  });
+  const bandData = (Object.entries(bandCounts) as [RankingBand, number][])
+    .map(([k, v]) => ({ name: BAND_DISPLAY[k], value: v, key: k }));
+
+  const calcAvg = (field: keyof ExamResult) =>
+    examResults.length
+      ? parseFloat((examResults.reduce((s, r) => s + (Number(r[field]) || 0), 0) / examResults.length).toFixed(1))
+      : 0;
+
+  const sectionAvgs = config.sections.map(sec => ({
+    subject: sec.label,
+    A: calcAvg(sec.key as keyof ExamResult),
+    fullMark: sec.max
+  }));
+
+  const pctBuckets = { '90-100%': 0, '75-89%': 0, '60-74%': 0, '50-59%': 0, '<50%': 0 };
+  students.forEach(s => {
+    const p = s.percentage_12th;
+    if (p >= 90) pctBuckets['90-100%']++;
+    else if (p >= 75) pctBuckets['75-89%']++;
+    else if (p >= 60) pctBuckets['60-74%']++;
+    else if (p >= 50) pctBuckets['50-59%']++;
+    else pctBuckets['<50%']++;
+  });
+  const pctData = Object.entries(pctBuckets).map(([name, count]) => ({ name, count }));
+
+  const ugCounts: Record<string, number> = {};
+  students.forEach(s => { const k = s.ug_status ?? 'Unknown'; ugCounts[k] = (ugCounts[k] ?? 0) + 1; });
+  const ugData = Object.entries(ugCounts).map(([name, value]) => ({ name, value }));
+
+  const kpiCards = [
+    { label: 'Overall Pass Rate', value: `${passPercent}%`, desc: `${passed} of ${evaluated.length} qualified` },
+    { label: 'Total Applicants', value: total, desc: `Registered in ${config.studentsTable}` },
+    { label: 'Exam Completion', value: `${examResults.length}/${total}`, desc: 'Tests processed' },
+    { label: 'Malpractice Rate', value: `${examResults.length ? ((malpractice / examResults.length) * 100).toFixed(1) : 0}%`, desc: `${malpractice} flagged cases` },
   ];
-
-  // ─── Export simulation functions ───────────────────────────────────────────
-  const handleExport = (type: 'pdf' | 'excel' | 'print') => {
-    alert(`Exporting RSmart admission reports as ${type.toUpperCase()}... File download started.`);
-  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 gap-3 text-text-secondary">
+      <div className="flex items-center justify-center h-64 gap-3 text-muted-foreground">
         <RefreshCw size={22} className="animate-spin" />
-        <span>Syncing database analytics...</span>
+        <span>Loading analytics data for {config.label}...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-border rounded-xl p-6 shadow-soft">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles size={20} className="text-primary" />
-            <h1 className="text-xl font-bold text-text-primary">Executive Analytics Dashboard</h1>
-          </div>
-          <p className="text-xs text-text-secondary mt-1">Deep analytics on conversion rates, reviewer productivity, and student cohorts.</p>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
-          <button onClick={() => handleExport('pdf')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
-            <FileDown size={14} className="text-red-500" /> Export PDF
-          </button>
-          <button onClick={() => handleExport('excel')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
-            <FileSpreadsheet size={14} className="text-green-600" /> Export Excel
-          </button>
-          <button onClick={() => handleExport('print')} className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition">
-            <Printer size={14} className="text-blue-600" /> Print Report
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Overall Pass Percentage', value: `${passPercent}%`, desc: `${passed} qualified applicants` },
-          { label: 'Total Cohort Intake', value: total, desc: 'Students registered in DB' },
-          { label: 'Evaluation Queue Finish', value: `${evaluated.length}/${total}`, desc: 'Total tests processed' },
-          { label: 'Scholarships Awarded', value: meritCount, desc: 'Meritorious scholarship qualifiers' },
-        ].map((card, i) => (
-          <div key={i} className="bg-white border border-border rounded-xl p-5 shadow-soft">
-            <p className="text-xs font-semibold text-text-secondary">{card.label}</p>
-            <p className="text-2xl font-bold text-text-primary mt-2">{card.value}</p>
-            <p className="text-[10px] text-text-secondary mt-0.5">{card.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Department-wise Applications */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
+    <div className="space-y-6 min-w-0 w-full overflow-hidden pb-8">
+      {/* Header */}
+      <Card>
+        <CardHeader className="flex-row items-start justify-between border-b border-border pb-4 gap-4">
           <div>
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Department-wise Applications</h3>
-            <p className="text-[10px] text-text-secondary mt-0.5">Application metrics organized by department streams</p>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deptData} margin={{ left: -15, right: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dx={-4} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Applicants" barSize={35} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* State-wise applications */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Geographic Reach</h3>
-            <p className="text-[10px] text-text-secondary mt-0.5">Top performing states based on intake numbers</p>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stateData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5EEF9" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
-                <YAxis type="category" dataKey="state" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                <Bar dataKey="count" fill="#60A5FA" radius={[0, 4, 4, 0]} name="Applicants" barSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Scholarship and Reviewer productivity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Scholarship breakdown */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Scholarship Allocation</h3>
-            <p className="text-[10px] text-text-secondary mt-0.5">Applicants matching the merit criteria</p>
-          </div>
-          <div className="h-56 flex flex-col justify-between">
-            <ResponsiveContainer width="100%" height={140}>
-              <PieChart>
-                <Pie data={schData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="count" paddingAngle={2}>
-                  {schData.map((e, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 10 }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-1.5 text-[11px] font-semibold text-text-secondary">
-              {schData.map((s, idx) => (
-                <div key={s.name} className="flex justify-between items-center">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span>{s.name}</span>
-                  </div>
-                  <span className="text-text-primary font-bold">{s.count}</span>
-                </div>
-              ))}
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={17} className="text-primary" />
+              <CardTitle className="text-base font-bold">{config.label} Analytics Intelligence</CardTitle>
             </div>
+            <CardDescription>Deep analytics on exam performance, demographics & section-wise scores</CardDescription>
           </div>
-        </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => alert(`Exporting ${config.label} analytics to PDF...`)}>
+              <FileDown size={13} className="text-red-500" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => alert(`Exporting ${config.label} analytics to Excel...`)}>
+              <FileSpreadsheet size={13} className="text-green-600" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => window.print()}>
+              <Printer size={13} className="text-blue-600" /> Print
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
 
-        {/* Reviewer Productivity */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-soft lg:col-span-2 space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Reviewer Productivity Metrics</h3>
-            <p className="text-[10px] text-text-secondary mt-0.5">Active workload tracking for verification admins</p>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="bg-card border border-border p-1 w-full max-w-md h-auto grid grid-cols-3">
+          <TabsTrigger value="overview" className="text-xs py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Overview</TabsTrigger>
+          <TabsTrigger value="demographics" className="text-xs py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Demographics</TabsTrigger>
+          <TabsTrigger value="exams" className="text-xs py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Exam Performance</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 m-0 focus:outline-none">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {kpiCards.map((c, i) => (
+              <motion.div key={i} whileHover={{ y: -2 }} className="bg-card rounded-2xl ring-1 ring-foreground/10 p-5 shadow-soft">
+                <p className="text-xs font-semibold text-muted-foreground">{c.label}</p>
+                <p className="text-2xl font-bold text-foreground mt-2">{c.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{c.desc}</p>
+              </motion.div>
+            ))}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-background text-text-secondary font-bold uppercase border-b border-border">
-                  <th className="px-4 py-3">Reviewer Name</th>
-                  <th className="px-4 py-3 text-center">Reviews Completed</th>
-                  <th className="px-4 py-3 text-center">Avg Time</th>
-                  <th className="px-4 py-3 text-center">Pending Cases</th>
-                  <th className="px-4 py-3 text-right">Approval Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {reviewerStats.map(r => (
-                  <tr key={r.name} className="hover:bg-blue-50/10">
-                    <td className="px-4 py-3 font-semibold text-text-primary">{r.name}</td>
-                    <td className="px-4 py-3 text-center font-bold text-text-primary">{r.reviews}</td>
-                    <td className="px-4 py-3 text-center text-text-secondary">{r.avgTime}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.pending}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-green-600">{r.approvalRate}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Branch/Course-wise Applications</CardTitle>
+                <CardDescription className="text-[10px]">Application distribution across programs</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={deptData} margin={{ left: -15 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Applicants" barSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">12th % Distribution</CardTitle>
+                <CardDescription className="text-[10px]">Academic performance buckets</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={pctData} margin={{ left: -15 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 9 }} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="#10B981" radius={[4, 4, 0, 0]} name="Students" barSize={28} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="demographics" className="space-y-6 m-0 focus:outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Geographic Reach (Top 8 States)</CardTitle>
+                <CardDescription className="text-[10px]">State-wise applicant distribution</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stateData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5EEF9" />
+                      <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                      <YAxis type="category" dataKey="state" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} width={80} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="#60A5FA" radius={[0, 4, 4, 0]} name="Applicants" barSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Gender Distribution</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={genderData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" paddingAngle={3} nameKey="name">
+                        {genderData.map((_, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ fontSize: 10 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center gap-6 mt-2">
+                  {genderData.map((d, idx) => (
+                    <div key={d.name} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      {d.name}: {d.value}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2 min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">UG Status Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={ugData} margin={{ left: -15 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5EEF9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                      <Bar dataKey="value" fill="#818CF8" radius={[4, 4, 0, 0]} name="Students" barSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 mt-2">
+                  {ugData.map((d, idx) => (
+                    <div key={d.name} className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-400" />
+                      {d.name}: {d.value}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="exams" className="space-y-6 m-0 focus:outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Avg Section Scores (Radar)</CardTitle>
+                <CardDescription className="text-[10px]">Average score per section in {config.label}</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-52">
+                  {sectionAvgs.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No section averages.</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={sectionAvgs}>
+                        <PolarGrid stroke="#E5EEF9" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: '#64748B' }} />
+                        <Radar name="Avg Score" dataKey="A" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} />
+                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="min-w-0 overflow-hidden">
+              <CardHeader className="border-b border-border pb-3">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Band Distribution</CardTitle>
+                <CardDescription className="text-[10px]">From {config.examResultsTable}.band</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {bandData.every(d => d.value === 0) ? (
+                  <div className="h-52 flex items-center justify-center text-xs text-muted-foreground">No exam data.</div>
+                ) : (
+                  <div className="h-52 flex flex-col justify-between">
+                    <ResponsiveContainer width="100%" height={140}>
+                      <PieChart>
+                        <Pie data={bandData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" paddingAngle={2}>
+                          {bandData.map((d, idx) => <Cell key={idx} fill={BAND_COLORS[d.key as RankingBand] ?? COLORS[idx]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px] font-semibold text-muted-foreground">
+                      {bandData.map(d => (
+                        <div key={d.name} className="flex items-center gap-1">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: BAND_COLORS[d.key as RankingBand] }} />
+                          <span>{d.name} ({d.value})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

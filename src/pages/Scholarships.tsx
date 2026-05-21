@@ -1,187 +1,206 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
-  Award, DollarSign, Users, CheckCircle2, AlertTriangle, Sparkles, RefreshCw, X, Check, Eye
+  ClipboardList, RefreshCw, Search, ShieldAlert, CheckCircle2,
+  Brain, Hash, Clock, TrendingUp, Award, Download
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAppData } from '@/hooks/useAppData';
-import { Scholarship, Student } from '@/types';
+import { useCourse } from '@/context/CourseContext';
+import { RANKING_BAND_STYLES, BAND_DISPLAY, RankingBand, getRankingBand, formatCourse } from '@/types';
 
-export default function Scholarships() {
-  const { students, scholarships, loading, error, saveScholarshipStatus, reload } = useAppData();
-  const [selectedSch, setSelectedSch] = useState<Scholarship | null>(null);
-  const [amountInput, setAmountInput] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+export default function ExamResults() {
+  const { config } = useCourse();
+  const { students, examResults, loading, reload } = useAppData();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Evaluated' | 'Malpractice'>('All');
+  const [bandFilter, setBandFilter] = useState<string>('All');
 
-  // ─── Financial Calculations ────────────────────────────────────────────────
-  const totalBudget = 500000; // Mock total budget allocated for current cycle
-  const approvedSchs = scholarships.filter(s => s.approval_status === 'Approved');
-  const totalAllocated = approvedSchs.reduce((sum, current) => sum + current.amount, 0);
-  const remainingBudget = Math.max(0, totalBudget - totalAllocated);
-  const averageAmount = approvedSchs.length ? Math.round(totalAllocated / approvedSchs.length) : 0;
+  const enriched = useMemo(() => {
+    return examResults
+      .map(r => {
+        const student = students.find(s => s.id === r.student_id);
+        return {
+          ...r,
+          studentName: student?.name ?? 'Unknown',
+          studentCourse: student?.course ?? '',
+          studentAppNo: student?.application_no ?? '',
+          studentState: student?.state ?? '',
+        };
+      })
+      .filter(r => {
+        const matchSearch =
+          r.studentName.toLowerCase().includes(search.toLowerCase()) ||
+          String(r.studentAppNo).includes(search) ||
+          r.exam_set.toLowerCase().includes(search.toLowerCase());
+        const matchStatus = statusFilter === 'All' || r.status === statusFilter;
+        const band = r.band ?? getRankingBand(r.percentage);
+        const matchBand = bandFilter === 'All' || band === bandFilter;
+        return matchSearch && matchStatus && matchBand;
+      });
+  }, [examResults, students, search, statusFilter, bandFilter]);
 
-  const handleUpdate = async (id: string, status: string, amt?: number) => {
-    try {
-      await saveScholarshipStatus(id, status, amt);
-      setModalOpen(false);
-      setSelectedSch(null);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const total = examResults.length;
+  const evaluated = examResults.filter(r => r.status === 'Evaluated').length;
+  const malpractice = examResults.filter(r => r.status === 'Malpractice').length;
+  const avgScore = total ? Math.round(examResults.reduce((s, r) => s + r.total_score, 0) / total) : 0;
+  const avgPct = total ? (examResults.reduce((s, r) => s + r.percentage, 0) / total).toFixed(1) : '0';
+  const distinguished = examResults.filter(r => (r.band ?? getRankingBand(r.percentage)) === 'DISTINGUISHED').length;
 
-  const getStudentName = (sid: string) => {
-    const s = students.find(x => x.id === sid);
-    return s ? s.name : 'Unknown Student';
-  };
+  const statsCards = [
+    { label: 'Total Exams',      value: total,              color: 'text-blue-600',   bg: 'bg-blue-50',   icon: ClipboardList, action: () => { setStatusFilter('All'); setBandFilter('All'); } },
+    { label: 'Evaluated',        value: evaluated,          color: 'text-green-600',  bg: 'bg-green-50',  icon: CheckCircle2, action: () => { setStatusFilter('Evaluated'); setBandFilter('All'); } },
+    { label: 'Malpractice',      value: malpractice,        color: 'text-red-600',    bg: 'bg-red-50',    icon: ShieldAlert, action: () => { setStatusFilter('Malpractice'); setBandFilter('All'); } },
+    { label: 'Avg Score',        value: `${avgScore}/100`,  color: 'text-indigo-600', bg: 'bg-indigo-50', icon: TrendingUp },
+    { label: 'Avg Percentage',   value: `${avgPct}%`,       color: 'text-purple-600', bg: 'bg-purple-50', icon: Hash },
+    { label: 'Distinguished',    value: distinguished,      color: 'text-amber-600',  bg: 'bg-amber-50',  icon: Award, action: () => { setStatusFilter('All'); setBandFilter('DISTINGUISHED'); } },
+  ];
 
-  const getStudent12th = (sid: string) => {
-    const s = students.find(x => x.id === sid);
-    return s ? `${s.percentage_12th}%` : '—';
-  };
+  const colSpanCount = 8 + config.sections.length;
 
   return (
     <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-border rounded-xl p-6 shadow-soft">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles size={20} className="text-primary" />
-            <h1 className="text-xl font-bold text-text-primary">Scholarship Approval Engine</h1>
-          </div>
-          <p className="text-xs text-text-secondary mt-1">Review merit-based funding requests, track allocated budget, and approve waivers.</p>
-        </div>
-        <button
-          onClick={reload}
-          className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg text-xs font-semibold hover:bg-background transition"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Sync Supabase
-        </button>
-      </div>
 
-      {/* Financial Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Scholarship Budget', value: `₹${totalBudget.toLocaleString('en-IN')}`, desc: 'Total allocated pool', color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Total Allocated Budget', value: `₹${totalAllocated.toLocaleString('en-IN')}`, desc: 'Current approved funding', color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Remaining Budget Pool', value: `₹${remainingBudget.toLocaleString('en-IN')}`, desc: 'Available for approval', color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Average Award Grant', value: `₹${averageAmount.toLocaleString('en-IN')}`, desc: 'Per qualified student', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-        ].map((card, i) => (
-          <div key={i} className="bg-white border border-border rounded-xl p-5 shadow-soft">
-            <p className="text-xs font-semibold text-text-secondary">{card.label}</p>
-            <p className={`text-xl font-bold mt-2 ${card.color}`}>{card.value}</p>
-            <p className="text-[10px] text-text-secondary mt-0.5">{card.desc}</p>
-          </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        {statsCards.map((c, i) => (
+          <motion.div 
+            key={i} 
+            whileHover={{ y: -2 }} 
+            onClick={c.action}
+            className={`bg-card rounded-2xl ring-1 ring-foreground/10 p-4 shadow-soft ${c.action ? 'cursor-pointer hover:ring-primary/30' : ''}`}
+          >
+            <div className={`w-8 h-8 rounded-lg ${c.bg} flex items-center justify-center mb-2`}>
+              <c.icon size={14} className={c.color} />
+            </div>
+            <p className={`text-xl font-extrabold ${c.color}`}>{loading ? '...' : c.value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{c.label}</p>
+          </motion.div>
         ))}
       </div>
 
-      {/* Scholarship Workflow Grid */}
-      <div className="bg-white border border-border rounded-xl shadow-soft overflow-hidden">
-        <div className="p-5 border-b border-border bg-white flex justify-between items-center">
-          <div>
-            <h3 className="text-sm font-bold text-text-primary">Scholarship Eligible Applicants</h3>
-            <p className="text-[10px] text-text-secondary mt-0.5">Applicants qualifying for merit-based financial waivers</p>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+              <Input className="pl-9 h-9 text-xs" placeholder="Search by name, app no, exam set..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {(['All', 'Evaluated', 'Malpractice'] as const).map(s => (
+                <button key={s} onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${statusFilter === s ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary hover:text-primary'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {['All', 'DISTINGUISHED', 'PROFICIENT', 'ADVANCED', 'EMERGING'].map(b => (
+                <button key={b} onClick={() => setBandFilter(b)}
+                  className={`px-2.5 py-1.5 rounded-full text-xs font-semibold border transition ${bandFilter === b ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary hover:text-primary'}`}>
+                  {b === 'All' ? 'All Bands' : BAND_DISPLAY[b as RankingBand]}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
+      {/* Results Table */}
+      <div className="bg-card rounded-2xl ring-1 ring-foreground/10 shadow-soft overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-background text-text-secondary font-bold uppercase border-b border-border text-[10px] tracking-wider">
-                <th className="px-6 py-4">Student</th>
-                <th className="px-6 py-4">12th Grade %</th>
-                <th className="px-6 py-4">Scholarship Category</th>
-                <th className="px-6 py-4 text-center">Amount Offered</th>
-                <th className="px-6 py-4 text-center">Approval Status</th>
-                <th className="px-6 py-4 text-right">Action</th>
+              <tr className="bg-background/95 backdrop-blur border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground sticky top-0 z-10">
+              <th className="px-6 py-4">Applicant</th>
+              <th className="px-6 py-4">Exam Set</th>
+                {config.sections.map(sec => (
+                  <th key={sec.key} className="px-6 py-4 text-center">{sec.label} ({sec.max})</th>
+              ))}
+              <th className="px-6 py-4 text-center">Total Score</th>
+              <th className="px-6 py-4 text-center">Percentage</th>
+              <th className="px-6 py-4 text-center">Status</th>
+              <th className="px-6 py-4 text-center">Band</th>
+              <th className="px-6 py-4">AI Insight</th>
+              <th className="px-6 py-4">Completed On</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-text-secondary">Syncing with Supabase...</td>
-                </tr>
-              ) : scholarships.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-12 text-text-secondary">No scholarship applicants registered.</td>
-                </tr>
-              ) : (
-                scholarships.map(sch => (
-                  <tr key={sch.id} className="hover:bg-blue-50/10 transition-colors">
-                    <td className="px-6 py-3.5 font-semibold text-text-primary">{getStudentName(sch.student_id)}</td>
-                    <td className="px-6 py-3.5 text-text-secondary font-medium">{getStudent12th(sch.student_id)}</td>
-                    <td className="px-6 py-3.5 text-text-primary font-medium">{sch.scholarship_type}</td>
-                    <td className="px-6 py-3.5 text-center font-mono font-bold text-text-primary">₹{sch.amount.toLocaleString('en-IN')}</td>
-                    <td className="px-6 py-3.5 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        sch.approval_status === 'Approved' ? 'bg-green-100 text-green-700' :
-                        sch.approval_status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {sch.approval_status}
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-5"><div className="flex gap-3.5 items-center"><div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-3 w-16" /></div></div></td>
+                      <td className="px-6 py-5"><Skeleton className="h-4 w-12" /></td>
+                      {config.sections.map(sec => <td key={sec.key} className="px-6 py-5"><Skeleton className="h-4 w-10 mx-auto" /></td>)}
+                      <td className="px-6 py-5"><Skeleton className="h-4 w-12 mx-auto" /></td>
+                      <td className="px-6 py-5"><Skeleton className="h-4 w-12 mx-auto" /></td>
+                      <td className="px-6 py-5"><Skeleton className="h-5 w-24 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-5"><Skeleton className="h-5 w-24 rounded" /></td>
+                      <td className="px-6 py-5"><div className="flex gap-1.5 items-start"><Skeleton className="w-3 h-3 rounded-full mt-1 shrink-0" /><Skeleton className="h-8 w-32" /></div></td>
+                      <td className="px-6 py-5"><Skeleton className="h-4 w-16" /></td>
+                    </tr>
+                  ))}
+                </>
+              ) : enriched.length === 0 ? (
+                <tr><td colSpan={colSpanCount} className="text-center py-16 text-muted-foreground">No exam results found.</td></tr>
+              ) : enriched.map(r => {
+                const band: RankingBand = r.band ?? getRankingBand(r.percentage);
+                return (
+                  <tr key={r.id} className="hover:bg-muted/60 transition-colors group text-sm">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3.5">
+
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{r.studentName}</p>
+                          <p className="text-xs text-muted-foreground">#{r.studentAppNo}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 font-mono uppercase text-muted-foreground">{r.exam_set}</td>
+                    {config.sections.map(sec => (
+                      <td key={sec.key} className="px-6 py-5 text-center font-semibold text-foreground">
+                        {Number(r[sec.key as keyof typeof r] ?? 0)}/{sec.max}
+                      </td>
+                    ))}
+                    <td className="px-6 py-5 text-center font-bold text-foreground text-base">{r.total_score}/100</td>
+                    <td className="px-6 py-5 text-center font-bold text-primary text-base">{(r.percentage || 0).toFixed(1)}%</td>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border text-xs font-medium text-foreground`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${r.status === 'Malpractice' ? 'bg-red-500' : 'bg-green-500'}`} />
+                        {r.status}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 text-right">
-                      {sch.approval_status === 'Pending' ? (
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <button
-                            onClick={() => { setSelectedSch(sch); setAmountInput(String(sch.amount)); setModalOpen(true); }}
-                            className="px-2.5 py-1 bg-primary text-white font-bold rounded text-[10px] hover:bg-blue-600 transition"
-                          >
-                            Review
-                          </button>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`px-2.5 py-1 rounded text-xs font-semibold ${RANKING_BAND_STYLES[band]}`}>
+                        {BAND_DISPLAY[band]}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 max-w-[200px]">
+                      {r.ai_feedback ? (
+                        <div className="flex items-start gap-1">
+                          <Brain size={11} className="text-primary shrink-0 mt-0.5" />
+                          <p className="text-muted-foreground truncate" title={r.ai_feedback}>{r.ai_feedback}</p>
                         </div>
-                      ) : (
-                        <span className="text-[10px] text-text-secondary font-medium">Decided</span>
-                      )}
+                      ) : <span className="text-muted-foreground italic">—</span>}
+                    </td>
+                    <td className="px-6 py-5 text-muted-foreground whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={14} />
+                        {new Date(r.completed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Review Modal */}
-      {modalOpen && selectedSch && (
-        <div className="fixed inset-0 bg-text-primary/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl border border-border shadow-premium max-w-sm w-full p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-text-primary">Review Merit Waiver</h3>
-                <p className="text-[10px] text-text-secondary mt-0.5">Candidate: {getStudentName(selectedSch.student_id)}</p>
-              </div>
-              <button onClick={() => setModalOpen(false)} className="text-text-secondary hover:text-text-primary"><X size={18} /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Waiver Amount (₹)</label>
-                <input
-                  type="number"
-                  value={amountInput}
-                  onChange={e => setAmountInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => handleUpdate(selectedSch.id, 'Approved', Number(amountInput))}
-                  className="py-2.5 bg-green-600 text-white font-semibold rounded-xl text-xs hover:bg-green-700 transition flex items-center justify-center gap-1.5"
-                >
-                  <Check size={14} /> Approve
-                </button>
-                <button
-                  onClick={() => handleUpdate(selectedSch.id, 'Rejected')}
-                  className="py-2.5 bg-red-600 text-white font-semibold rounded-xl text-xs hover:bg-red-700 transition flex items-center justify-center gap-1.5"
-                >
-                  <X size={14} /> Deny
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

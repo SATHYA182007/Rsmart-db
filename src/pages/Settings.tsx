@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
-  Settings as SettingsIcon, Shield, Server, Bell, Database, Lock, Eye, Check,
-  Sparkles, RefreshCw, Save, CheckCircle2, Sliders, ToggleLeft, ToggleRight
+  Shield, Server, Database, Sparkles, RefreshCw, Save, CheckCircle2, Sliders, ToggleLeft, ToggleRight
 } from 'lucide-react';
+import { useCourse } from '@/context/CourseContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 export default function Settings() {
+  const { config } = useCourse();
   const [examDuration, setExamDuration] = useState('60');
   const [totalMarks, setTotalMarks] = useState('100');
   const [admissionOpen, setAdmissionOpen] = useState(true);
@@ -24,153 +30,182 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-border rounded-xl p-6 shadow-soft">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles size={20} className="text-primary" />
-            <h1 className="text-xl font-bold text-text-primary">System Configurations</h1>
+      {/* Header */}
+      <Card>
+        <CardHeader className="flex-row items-center gap-2.5 border-b border-border pb-4">
+          <Sparkles size={17} className="text-primary" />
+          <div>
+            <CardTitle className="text-base font-bold text-foreground">System Configurations ({config.label})</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Configure admission rules, exam monitoring preferences, and access permissions.</p>
           </div>
-          <p className="text-xs text-text-secondary mt-1">Configure admission rules, exam monitoring preferences, and access permissions.</p>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Side: Navigation Links / Panel */}
-        <div className="space-y-4 lg:col-span-2">
-          {/* General Config Form */}
-          <form onSubmit={handleSave} className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-            <h3 className="text-sm font-bold text-text-primary flex items-center gap-2 pb-2 border-b border-border">
-              <Sliders size={16} className="text-primary" /> Exam Settings
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Exam Duration (Minutes)</label>
-                <input
-                  type="number"
-                  value={examDuration}
-                  onChange={e => setExamDuration(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
+        {/* Left: Main forms */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Exam Settings */}
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Sliders size={15} className="text-primary" />
+                <CardTitle className="text-sm font-bold">Exam Settings</CardTitle>
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Total Exam Marks</label>
-                <input
-                  type="number"
-                  value={totalMarks}
-                  onChange={e => setTotalMarks(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2.5 pt-2">
-              <p className="text-[10px] font-bold text-text-secondary uppercase">Sectional Breakdowns (Marks/Sec)</p>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                {['Section A', 'Section B', 'Section C', 'Section D'].map(sec => (
-                  <div key={sec} className="p-2 border border-border rounded-lg bg-background">
-                    <p className="text-[10px] text-text-secondary">{sec}</p>
-                    <p className="font-bold text-text-primary mt-1">25 marks</p>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <form onSubmit={handleSave} className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Exam Duration (Minutes)</Label>
+                    <Input
+                      type="number"
+                      value={examDuration}
+                      onChange={e => setExamDuration(e.target.value)}
+                      className="text-sm"
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-4">
-              {saved && (
-                <span className="flex items-center gap-1 text-xs text-success font-semibold">
-                  <CheckCircle2 size={14} /> Saved successfully
-                </span>
-              )}
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition disabled:opacity-75"
-              >
-                {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                Save Changes
-              </button>
-            </div>
-          </form>
-
-          {/* Admission portal status toggles */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-            <h3 className="text-sm font-bold text-text-primary flex items-center gap-2 pb-2 border-b border-border">
-              <Server size={16} className="text-primary" /> Admission Channels
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center text-xs">
-                <div>
-                  <p className="font-bold text-text-primary">Enable Candidate Self-Registration</p>
-                  <p className="text-[10px] text-text-secondary mt-0.5">Let new applicants create registrations on the public portal.</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Total Exam Marks</Label>
+                    <Input
+                      type="number"
+                      value={totalMarks}
+                      onChange={e => setTotalMarks(e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
-                <button onClick={() => setSelfReg(!selfReg)} className="text-primary">
-                  {selfReg ? <ToggleRight size={38} className="text-primary" /> : <ToggleLeft size={38} className="text-text-secondary" />}
+
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Sectional Breakdowns (Marks/Sec)</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs">
+                    {config.sections.map(sec => (
+                      <div key={sec.key} className="p-3 border border-border rounded-xl bg-muted">
+                        <p className="text-[10px] text-muted-foreground">{sec.label}</p>
+                        <p className="font-bold text-foreground mt-1">{sec.max} marks</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  {saved && (
+                    <span className="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
+                      <CheckCircle2 size={13} /> Saved successfully
+                    </span>
+                  )}
+                  <Button type="submit" size="sm" disabled={saving} className="gap-1.5 text-xs">
+                    {saving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Admission Channels */}
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Server size={15} className="text-primary" />
+                <CardTitle className="text-sm font-bold">Admission Channels</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-5">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Enable Candidate Self-Registration</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Let new applicants create registrations on the public portal.</p>
+                </div>
+                <button type="button" onClick={() => setSelfReg(!selfReg)}>
+                  {selfReg
+                    ? <ToggleRight size={36} className="text-primary" />
+                    : <ToggleLeft size={36} className="text-muted-foreground" />
+                  }
                 </button>
               </div>
-
-              <div className="flex justify-between items-center text-xs border-t border-border pt-4">
+              <Separator />
+              <div className="flex justify-between items-center">
                 <div>
-                  <p className="font-bold text-text-primary">Admission Intake Cycle Open</p>
-                  <p className="text-[10px] text-text-secondary mt-0.5">Marking the current admission cycle open for selections.</p>
+                  <p className="text-sm font-semibold text-foreground">Admission Intake Cycle Open</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Marking the current admission cycle open for selections.</p>
                 </div>
-                <button onClick={() => setAdmissionOpen(!admissionOpen)} className="text-primary">
-                  {admissionOpen ? <ToggleRight size={38} className="text-primary" /> : <ToggleLeft size={38} className="text-text-secondary" />}
+                <button type="button" onClick={() => setAdmissionOpen(!admissionOpen)}>
+                  {admissionOpen
+                    ? <ToggleRight size={36} className="text-primary" />
+                    : <ToggleLeft size={36} className="text-muted-foreground" />
+                  }
                 </button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Access control and backups */}
+        {/* Right: Access & DB */}
         <div className="space-y-6">
-          {/* User Access Controls */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-            <h3 className="text-sm font-bold text-text-primary flex items-center gap-2 pb-2 border-b border-border">
-              <Shield size={16} className="text-primary" /> User Roles & Access
-            </h3>
-            <div className="space-y-3 text-xs">
+          {/* User Roles */}
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Shield size={15} className="text-primary" />
+                <CardTitle className="text-sm font-bold">User Roles & Access</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
               {[
                 { role: 'Super Admin', desc: 'Full configuration access & user control' },
-                { role: 'Admission Coordinator', desc: 'Schedule interviews, update results' },
+                { role: 'Admission Coordinator', desc: 'Process applications, update results' },
                 { role: 'Reviewer', desc: 'Assess candidate profiles, submit feedback' },
                 { role: 'Staff Member', desc: 'General verification & details check' },
-              ].map(u => (
-                <div key={u.role} className="flex justify-between items-start border-b border-border pb-2 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-semibold text-text-primary">{u.role}</p>
-                    <p className="text-[10px] text-text-secondary mt-0.5">{u.desc}</p>
+              ].map((u, i, arr) => (
+                <div key={u.role}>
+                  <div className="flex justify-between items-start py-1">
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{u.role}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{u.desc}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0.5">Active</Badge>
                   </div>
-                  <span className="bg-blue-50 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded">Active</span>
+                  {i < arr.length - 1 && <Separator className="mt-2" />}
                 </div>
               ))}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Database Backup Strip */}
-          <div className="bg-white border border-border rounded-xl p-6 shadow-soft space-y-4">
-            <h3 className="text-sm font-bold text-text-primary flex items-center gap-2 pb-2 border-b border-border">
-              <Database size={16} className="text-primary" /> Database Operations
-            </h3>
-            <p className="text-[10px] text-text-secondary leading-relaxed">
-              Export full PostgreSQL schema structures, back up student logs, or download transactional logs.
-            </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => alert('PostgreSQL DB Snapshot Backup successful.')}
-                className="w-full py-2 bg-background border border-border hover:bg-primary/5 hover:text-primary rounded-lg text-xs font-semibold transition"
-              >
-                Create Database Backup
-              </button>
-              <button
-                onClick={() => alert('Exporting application verification logs...')}
-                className="w-full py-2 bg-background border border-border hover:bg-primary/5 hover:text-primary rounded-lg text-xs font-semibold transition"
-              >
-                Export Settings Logs
-              </button>
-            </div>
-          </div>
+          {/* Database Operations */}
+          <Card>
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Database size={15} className="text-primary" />
+                <CardTitle className="text-sm font-bold">Database Operations</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <div className="text-[10px] text-muted-foreground space-y-2">
+                <p>Connected to <span className="font-mono font-semibold text-primary">dxmfavdiygtkoghrreui.supabase.co</span></p>
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant="outline" className="font-mono text-[9px]">{config.studentsTable}</Badge>
+                  <Badge variant="outline" className="font-mono text-[9px]">{config.examResultsTable}</Badge>
+                </div>
+                <p className="leading-relaxed">Export full schema structures, back up student logs, or download transactional logs.</p>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full text-xs h-9"
+                  onClick={() => alert(`PostgreSQL DB Snapshot Backup successful for ${config.label}.`)}
+                >
+                  Create Database Backup
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-xs h-9"
+                  onClick={() => alert('Exporting application verification logs...')}
+                >
+                  Export Settings Logs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

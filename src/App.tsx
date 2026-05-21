@@ -5,7 +5,6 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import Analytics from './pages/Analytics';
-import Interviews from './pages/Interviews';
 import Scholarships from './pages/Scholarships';
 import Settings from './pages/Settings';
 
@@ -18,7 +17,6 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="students" element={<Students />} />
         <Route path="analytics" element={<Analytics />} />
-        <Route path="interviews" element={<Interviews />} />
         <Route path="scholarships" element={<Scholarships />} />
         <Route path="settings" element={<Settings />} />
       </Route>

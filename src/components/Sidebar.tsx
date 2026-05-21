@@ -1,84 +1,95 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  BarChart3, 
-  Settings,
-  GraduationCap,
-  LogOut
+import {
+  LayoutDashboard, Users, ClipboardList,
+  BarChart2, Settings, GraduationCap, LogOut, Sparkles
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useCourse } from '@/context/CourseContext';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: Users, label: 'Students', path: '/students' },
-  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+const navItems = [
+  { label: 'Dashboard',    icon: LayoutDashboard, path: '/' },
+  { label: 'Applicants',   icon: Users,           path: '/students' },
+  { label: 'Exam Results', icon: ClipboardList,   path: '/scholarships' },
+  { label: 'Analytics',    icon: BarChart2,       path: '/analytics' },
+  { label: 'Settings',     icon: Settings,        path: '/settings' },
 ];
 
-export default function Sidebar() {
+export default function AppSidebar() {
   const navigate = useNavigate();
+  const { config } = useCourse();
 
   return (
-    <aside className="w-64 fixed inset-y-0 left-0 bg-gradient-to-b from-primary-gradientStart to-primary-gradientEnd text-white z-20 flex flex-col justify-between">
-      <div>
-        <div className="p-6 flex items-center gap-3">
-          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-            <GraduationCap size={24} className="text-white" />
+    <Sidebar variant="sidebar" collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border pb-4 pt-4">
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Sparkles size={16} />
           </div>
-          <span className="text-xl font-bold tracking-tight">RSmart</span>
+          <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+            <span className="font-bold font-heading">RSmartDB</span>
+            <span className="text-[10px] text-muted-foreground">Admission Intel</span>
+          </div>
         </div>
+      </SidebarHeader>
 
-        <nav className="px-4 mt-6 space-y-2">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => 
-                `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  isActive 
-                    ? 'text-primary bg-white shadow-soft' 
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
-                }`
-              }
+      <SidebarContent>
+        {/* Course badge */}
+        <SidebarGroup className="pt-2">
+          <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-primary group-data-[collapsible=icon]:justify-center">
+            <GraduationCap size={16} />
+            <span className="text-xs font-semibold group-data-[collapsible=icon]:hidden">{config.label}</span>
+          </div>
+        </SidebarGroup>
+
+        {/* Navigation */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarMenu>
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.path}>
+                <SidebarMenuButton asChild tooltip={item.label}>
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/'}
+                    className={({ isActive }) =>
+                      isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : ''
+                    }
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border pb-4 pt-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => navigate('/login')}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
-              {({ isActive }) => (
-                <>
-                  <item.icon size={20} className={isActive ? 'text-primary' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="active-nav"
-                      className="absolute inset-0 bg-white rounded-xl shadow-soft -z-10"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-      </div>
-
-      <div className="p-6 space-y-4">
-        <button 
-          onClick={() => navigate('/login')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 border border-transparent hover:border-white/10"
-        >
-          <LogOut size={20} />
-          <span className="font-medium">Sign Out</span>
-        </button>
-
-        <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20">
-          <p className="text-sm font-medium mb-1">Need help?</p>
-          <p className="text-xs text-white/70 mb-3">Check our docs</p>
-          <button className="w-full py-2 bg-white text-primary rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors shadow-sm">
-            Documentation
-          </button>
-        </div>
-      </div>
-    </aside>
+              <LogOut />
+              <span>Sign Out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

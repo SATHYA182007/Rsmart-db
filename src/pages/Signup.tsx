@@ -5,6 +5,11 @@ import { Eye, EyeOff, Sparkles, ArrowRight, Mail, Lock, User, Phone } from 'luci
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 const schema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -31,7 +36,7 @@ export default function Signup() {
     defaultValues: { role: 'Admission Admin' },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (_data: FormData) => {
     setLoading(true);
     await new Promise(r => setTimeout(r, 1000));
     setLoading(false);
@@ -39,98 +44,123 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-screen bg-muted flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-xl bg-white rounded-2xl border border-border shadow-premium p-8 md:p-10 flex flex-col md:flex-row gap-8"
+        transition={{ duration: 0.35 }}
+        className="w-full max-w-lg"
       >
-        <div className="flex-1 space-y-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-              <Sparkles size={16} />
-            </div>
-            <span className="font-bold text-text-primary text-lg">RSmartDB</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">Create an account</h1>
-            <p className="text-sm text-text-secondary mt-1">Access the Admission Intelligence Platform</p>
-          </div>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Full Name</label>
-              <div className="relative">
-                <User size={15} className="absolute left-3 top-3.5 text-text-secondary" />
-                <input {...register('fullName')} placeholder="Alex Mercer" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+        <Card className="shadow-premium">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <Sparkles size={16} className="text-primary-foreground" />
               </div>
-              {errors.fullName && <p className="text-danger text-xs mt-1">{errors.fullName.message}</p>}
+              <span className="font-bold text-foreground text-lg font-heading">RSmartDB</span>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Email Address</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-3.5 text-text-secondary" />
-                <input {...register('email')} type="email" placeholder="alex@college.edu" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-              </div>
-              {errors.email && <p className="text-danger text-xs mt-1">{errors.email.message}</p>}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Mobile</label>
+            <CardTitle className="text-2xl font-bold text-foreground">Create an account</CardTitle>
+            <CardDescription>Access the Admission Intelligence Platform</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName" className="text-xs font-semibold uppercase tracking-wide">Full Name</Label>
                 <div className="relative">
-                  <Phone size={15} className="absolute left-3 top-3.5 text-text-secondary" />
-                  <input {...register('mobile')} placeholder="9876543210" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="fullName" {...register('fullName')} placeholder="Alex Mercer" className="pl-9" />
                 </div>
-                {errors.mobile && <p className="text-danger text-xs mt-1">{errors.mobile.message}</p>}
+                {errors.fullName && <p className="text-destructive text-xs">{errors.fullName.message}</p>}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Role</label>
-                <select {...register('role')} className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
-                  <option value="Admission Admin">Admission Admin</option>
-                  <option value="Reviewer">Reviewer</option>
-                  <option value="Staff">Staff</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Password</label>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-email" className="text-xs font-semibold uppercase tracking-wide">Email Address</Label>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-3.5 text-text-secondary" />
-                  <input {...register('password')} type={showPass ? 'text' : 'password'} className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-3.5 text-text-secondary hover:text-text-primary">
-                    {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="signup-email" {...register('email')} type="email" placeholder="alex@college.edu" className="pl-9" />
                 </div>
-                {errors.password && <p className="text-danger text-xs mt-1">{errors.password.message}</p>}
+                {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">Confirm</label>
-                <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-3.5 text-text-secondary" />
-                  <input {...register('confirmPassword')} type={showConfirm ? 'text' : 'password'} className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3.5 text-text-secondary hover:text-text-primary">
-                    {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
+
+              {/* Mobile + Role */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile" className="text-xs font-semibold uppercase tracking-wide">Mobile</Label>
+                  <div className="relative">
+                    <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="mobile" {...register('mobile')} placeholder="9876543210" className="pl-9" />
+                  </div>
+                  {errors.mobile && <p className="text-destructive text-xs">{errors.mobile.message}</p>}
                 </div>
-                {errors.confirmPassword && <p className="text-danger text-xs mt-1">{errors.confirmPassword.message}</p>}
+                <div className="space-y-1.5">
+                  <Label htmlFor="role" className="text-xs font-semibold uppercase tracking-wide">Role</Label>
+                  <select
+                    id="role"
+                    {...register('role')}
+                    className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                  >
+                    <option value="Admission Admin">Admission Admin</option>
+                    <option value="Reviewer">Reviewer</option>
+                    <option value="Staff">Staff</option>
+                  </select>
+                </div>
               </div>
+
+              {/* Password + Confirm */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-password" className="text-xs font-semibold uppercase tracking-wide">Password</Label>
+                  <div className="relative">
+                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="signup-password" {...register('password')} type={showPass ? 'text' : 'password'} className="pl-9 pr-9" />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password" className="text-xs font-semibold uppercase tracking-wide">Confirm</Label>
+                  <div className="relative">
+                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="confirm-password" {...register('confirmPassword')} type={showConfirm ? 'text' : 'password'} className="pl-9 pr-9" />
+                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p className="text-destructive text-xs">{errors.confirmPassword.message}</p>}
+                </div>
+              </div>
+
+              <Button type="submit" disabled={loading} className="w-full gap-2 mt-2">
+                {loading
+                  ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  : <>Sign Up <ArrowRight size={15} /></>
+                }
+              </Button>
+            </form>
+
+            <div className="relative">
+              <Separator />
+              <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-[10px] uppercase font-bold text-muted-foreground">
+                Or continue with
+              </span>
             </div>
-            <button type="submit" disabled={loading} className="w-full py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-blue-600 transition flex items-center justify-center gap-2 mt-4">
-              {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Sign Up <ArrowRight size={16} /></>}
-            </button>
-          </form>
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-[10px] uppercase font-bold text-text-secondary bg-white px-2">Or continue with</div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="py-2 border border-border rounded-xl text-xs font-semibold hover:bg-background transition">Google</button>
-            <button className="py-2 border border-border rounded-xl text-xs font-semibold hover:bg-background transition">Microsoft</button>
-          </div>
-          <p className="text-center text-xs text-text-secondary mt-4">
-            Already have an account? <Link to="/login" className="text-primary font-semibold hover:underline">Sign In</Link>
-          </p>
-        </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="text-xs h-9">Google</Button>
+              <Button variant="outline" className="text-xs h-9">Microsoft</Button>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground">
+              Already have an account?{' '}
+              <Link to="/login" className="text-primary font-semibold hover:underline">Sign In</Link>
+            </p>
+          </CardContent>
+        </Card>
       </motion.div>
     </div>
   );
