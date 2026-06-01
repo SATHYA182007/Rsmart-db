@@ -10,8 +10,8 @@
   :root {
     --background: #F9FAFB;
     --card: #FFFFFF;
-    --border: #E5E7EB;
-    --input: #E5E7EB;
+    --border: #D1D5DB;
+    --input: #D1D5DB;
     --ring: #09090B;
     --radius: 0.75rem;
 
@@ -54,6 +54,18 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
+
+  /* ── Override browser autofill blue/yellow tint ── */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #111827;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 @layer utilities {

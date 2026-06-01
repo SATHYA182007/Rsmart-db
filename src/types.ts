@@ -94,6 +94,14 @@ export function getRankingBand(percentage: number): RankingBand {
   return 'EMERGING';
 }
 
+export function getSafeRankingBand(band: string | null | undefined, percentage: number): RankingBand {
+  const validBands: RankingBand[] = ['DISTINGUISHED', 'PROFICIENT', 'ADVANCED', 'EMERGING'];
+  if (band && validBands.includes(band as RankingBand)) {
+    return band as RankingBand;
+  }
+  return getRankingBand(percentage);
+}
+
 export const RANKING_BAND_STYLES: Record<RankingBand, string> = {
   DISTINGUISHED: 'bg-purple-100 text-purple-700 border border-purple-200',
   PROFICIENT: 'bg-blue-100 text-blue-700 border border-blue-200',
